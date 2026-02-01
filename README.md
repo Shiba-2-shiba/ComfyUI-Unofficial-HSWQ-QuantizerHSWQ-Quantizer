@@ -28,15 +28,9 @@ Compared to the original scripts, this repository focuses on **workflow-level in
 * **Accumulation:** Statistics can be accumulated across multiple runs.
 * **Safe Saving:** Uses atomic saving to avoid corrupted stats files.
 
-### Dual Monitor Statistics
-* **Output sensitivity:** Tracks activation variance.
-* **Input channel importance:** Tracks per-channel contribution.
-
 ### V1-Compatible FP8 Conversion
 * **Smart Layer Selection:** Keeps top-k sensitive layers in **FP16**.
 * **Optimization:** Applies weighted histogram MSE optimization for FP8 `amax` selection.
-* **2D Input Handling:** Correctly handles `(B, C)` inputs.
-  * *Crucial for adaLN / embedding-like layers and NextDiT-style blocks.*
 
 All algorithmic decisions follow the design described in the original repository.
 
