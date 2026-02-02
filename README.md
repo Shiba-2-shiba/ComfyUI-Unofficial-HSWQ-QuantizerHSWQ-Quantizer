@@ -1,4 +1,4 @@
-# ComfyUI-HSWQ-Quantizer
+# ComfyUI-Unofficial-HSWQ-QuantizerHSWQ-Quantizer
 ### Unofficial ComfyUI reference implementation of Hybrid Sensitivity Weighted Quantization (HSWQ)
 
 ## Overview
