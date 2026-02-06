@@ -74,23 +74,24 @@ pip install lpips open_clip_torch
 
 ## Provided Nodes
 
-### 1. HSWQ Calibration (Dual Monitor)
+### 1. HSWQ Calibration (Dual Monitor V2)
 Collects calibration statistics while running standard SDXL generation.
 
 **Key features:**
-* Hooks into UNet forward passes
+* Hooks into UNet forward passes (Linear/Conv2d only).
 * **Tracks:**
-  * Output sensitivity (variance)
-  * Input channel importance
-* Session-based accumulation
-* Automatic checkpointing
+  * Output sensitivity (variance) in FP32, accumulated as Python float.
+  * Input channel importance (mean absolute value per channel).
+* Session-based accumulation with load/restore on disk.
+* Atomic checkpointing via `.tmp` + `os.replace`.
+* Wrapper-based enable/disable so normal generation remains unaffected.
 
 **Typical usage:**
 1. Insert the calibration node into your SDXL workflow.
 2. Run generation multiple times.
 3. Statistics are saved automatically as `.pt` files.
 
-### 2. HSWQ FP8 Converter
+### 2. SDXL HSWQ FP8 Quantizer (Spec-aligned)
 Converts an SDXL UNet model to FP8 using collected calibration statistics.
 
 **Conversion process:**
@@ -100,13 +101,24 @@ Converts an SDXL UNet model to FP8 using collected calibration statistics.
 4. Quantize remaining layers to **FP8** (`torch.float8_e4m3fn`).
 5. Optimize `amax` using weighted histogram MSE (HSWQ V1).
 
+**Notable behavior (current implementation):**
+* Optional **scaled** mode (default `False`) for spec-aligned V1 behavior.
+* Optional **comfy_quant** and **weight_scale** buffer injection to help
+  downstream loaders interpret FP8 weights.
+* Skips layers without stats or already in FP8, and normalizes BF16 → FP16
+  for protected layers.
+* `hswq_stats_path` is resolved relative to ComfyUI output directory when possible.
+
 The output model remains compatible with standard ComfyUI loaders.
 
-### 3. HSWQ FP8 Converter (Legacy)
-The former `SDXLHSWQQuantizer.py` implementation has been moved to
-`SDXLHSWQQuantizerLegacy.py`, while the latest implementation now lives in
-`SDXLHSWQQuantizer.py`. Use the legacy node for compatibility comparisons with
-the earlier behavior.
+### 3. HSWQ FP8 Converter (Legacy V1.2 Logic)
+Legacy node for compatibility comparisons with earlier behavior.
+
+**Legacy constraints:**
+* Fixed optimizer settings (bins/candidates/refinement).
+* **scaled=False** enforced (clip → cast only).
+* No `comfy_quant` metadata injection.
+* Uses the same output-variance sensitivity ranking and input importance when available.
 
 ### 4. HSWQ Advanced Benchmark
 Provides a benchmark node for comparing output fidelity across FP8/FP16 models.
@@ -153,3 +165,21 @@ If any part of this implementation is useful:
 ## License
 This repository follows the same license terms as the original HSWQ project,
 or provides explicit attribution where applicable.
+
+---
+
+## Change Log
+### 2026-02-06
+* Updated **SDXLHSWQQuantizer.py** to a spec-aligned FP8 quantizer:
+  * added scaled vs. unscaled behavior options,
+  * optional ComfyUI metadata buffers (`comfy_quant`, `weight_scale`),
+  * path resolution for stats under ComfyUI output directory,
+  * safer keep/skip logic for FP8 and BF16 layers.
+* Updated **SDXLHSWQQuantizerLegacy.py** to preserve V1.2 compatibility:
+  * fixed optimizer parameters,
+  * forced `scaled=False`,
+  * no metadata injection.
+* Updated **SDXLQuantStatsCollector.py** to Dual Monitor V2:
+  * session restore + atomic save,
+  * per-step wrapper-based capture,
+  * higher-precision accumulation for output variance and input importance.
