@@ -1,7 +1,3 @@
-{
-type: uploaded file
-fileName: SDXLHSWQQuantizerLegacy.py
-fullContent:
 import torch
 import torch.nn as nn
 import os
@@ -226,5 +222,4 @@ NODE_CLASS_MAPPINGS = {
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "HSWQFP8ConverterNodeLegacy": "HSWQ FP8 Converter (Legacy V1.2 Logic)"
-}
 }
