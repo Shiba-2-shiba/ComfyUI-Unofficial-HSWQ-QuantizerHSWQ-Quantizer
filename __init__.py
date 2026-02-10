@@ -5,7 +5,11 @@ print("### HSWQ Nodes: Initializing... ###")
 NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
 
-# 1. 統計コレクター (Calibration) の読み込み
+# ============================================================
+# SDXL Series (V1.5 / Legacy)
+# ============================================================
+
+# 1. SDXL 統計コレクター (Calibration) の読み込み
 try:
     from .SDXLQuantStatsCollector import NODE_CLASS_MAPPINGS as CalibMappings, NODE_DISPLAY_NAME_MAPPINGS as CalibDisplay
     NODE_CLASS_MAPPINGS.update(CalibMappings)
@@ -15,9 +19,8 @@ except Exception as e:
     print("  [ERROR] Failed to import SDXLQuantStatsCollector")
     traceback.print_exc()
 
-# 2. メイン量子化器 (V1.5 / Main) の読み込み
+# 2. SDXL メイン量子化器 (V1.5 / Main) の読み込み
 try:
-    # ファイル名を SDXLHSWQQuantizer.py に変更した前提
     from .SDXLHSWQQuantizer import NODE_CLASS_MAPPINGS as QuantMappings, NODE_DISPLAY_NAME_MAPPINGS as QuantDisplay
     NODE_CLASS_MAPPINGS.update(QuantMappings)
     NODE_DISPLAY_NAME_MAPPINGS.update(QuantDisplay)
@@ -26,20 +29,47 @@ except Exception as e:
     print("  [ERROR] Failed to import SDXLHSWQQuantizer")
     traceback.print_exc()
 
-# 3. レガシー量子化器 (V1.0) の読み込み (ファイルが存在する場合のみ)
+# 3. SDXL レガシー量子化器 (V1.0) の読み込み
 try:
-    # ファイル名を SDXLHSWQQuantizerLegacy.py に変更した前提
     from .SDXLHSWQQuantizerLegacy import NODE_CLASS_MAPPINGS as LegacyMappings, NODE_DISPLAY_NAME_MAPPINGS as LegacyDisplay
     NODE_CLASS_MAPPINGS.update(LegacyMappings)
     NODE_DISPLAY_NAME_MAPPINGS.update(LegacyDisplay)
     print("  [OK] SDXLHSWQQuantizerLegacy (V1.0) loaded.")
 except ImportError:
-    pass # ファイルがない場合は無視
+    pass 
 except Exception as e:
     print("  [ERROR] Failed to import SDXLHSWQQuantizerLegacy")
     traceback.print_exc()
 
-# 4. ベンチマークツールの読み込み
+# ============================================================
+# ZIT Series (New)
+# ============================================================
+
+# 4. ZIT 統計コレクター (Calibration) の読み込み
+try:
+    from .ZITQuantStatsCollector import NODE_CLASS_MAPPINGS as ZITCalibMappings, NODE_DISPLAY_NAME_MAPPINGS as ZITCalibDisplay
+    NODE_CLASS_MAPPINGS.update(ZITCalibMappings)
+    NODE_DISPLAY_NAME_MAPPINGS.update(ZITCalibDisplay)
+    print("  [OK] ZITQuantStatsCollector loaded.")
+except Exception as e:
+    print("  [ERROR] Failed to import ZITQuantStatsCollector")
+    traceback.print_exc()
+
+# 5. ZIT 量子化器 (Spec-aligned) の読み込み
+try:
+    from .ZITHSWQQuantizer import NODE_CLASS_MAPPINGS as ZITQuantMappings, NODE_DISPLAY_NAME_MAPPINGS as ZITQuantDisplay
+    NODE_CLASS_MAPPINGS.update(ZITQuantMappings)
+    NODE_DISPLAY_NAME_MAPPINGS.update(ZITQuantDisplay)
+    print("  [OK] ZITHSWQQuantizer loaded.")
+except Exception as e:
+    print("  [ERROR] Failed to import ZITHSWQQuantizer")
+    traceback.print_exc()
+
+# ============================================================
+# Tools / Benchmarks
+# ============================================================
+
+# 6. ベンチマークツールの読み込み
 try:
     from .HSWQAdvancedBenchmark import NODE_CLASS_MAPPINGS as BenchMappings, NODE_DISPLAY_NAME_MAPPINGS as BenchDisplay
     NODE_CLASS_MAPPINGS.update(BenchMappings)
