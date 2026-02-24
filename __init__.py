@@ -5,6 +5,7 @@ from .hswq_comfy_api import ComfyExtension, _write_import_error
 _NODE_IMPORTS = [
     ("SDXLQuantStatsCollector", "SDXLHSWQCalibrationNode"),
     ("SDXLHSWQQuantizer", "SDXLHSWQFP8QuantizerNode"),
+    ("SDXLHSWQ-SVD-Quantizer", "SDXLHSWQSVDQuantizerNode"),
     ("SDXLHSWQQuantizerLegacy", "SDXLHSWQFP8QuantizerLegacyNode"),
     ("ZITQuantStatsCollector", "ZITHSWQCalibrationNode"),
     ("ZITHSWQQuantizer", "ZITHSWQQuantizerNode"),
