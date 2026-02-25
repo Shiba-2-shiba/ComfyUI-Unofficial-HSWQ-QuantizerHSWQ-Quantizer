@@ -51,11 +51,33 @@ def ssim_tensor(img1, img2, window_size=11, size_average=True):
     else:
         return ssim_map.mean(1).mean(1).mean(1)
 
-class HSWQAdvancedBenchmark(IO.ComfyNode):
-    _lpips_model = None
-    _clip_model = None
-    _device = None
+# --- Module-level cache (avoid class attribute mutation in locked classes) ---
+_DEVICE = None
+_LPIPS_MODEL = None
+_CLIP_MODEL = None
 
+def _get_device():
+    global _DEVICE
+    if _DEVICE is None:
+        _DEVICE = comfy.model_management.get_torch_device()
+    return _DEVICE
+
+def _load_lpips():
+    global _LPIPS_MODEL
+    if _LPIPS_MODEL is None and LPIPS_AVAILABLE:
+        print("[HSWQ Bench] Loading LPIPS model (AlexNet)...")
+        _LPIPS_MODEL = lpips.LPIPS(net='alex', verbose=False).to(_get_device())
+        _LPIPS_MODEL.eval()
+
+def _load_clip():
+    global _CLIP_MODEL
+    if _CLIP_MODEL is None and CLIP_AVAILABLE:
+        print("[HSWQ Bench] Loading CLIP model (ViT-B-32)...")
+        model, _, _ = open_clip.create_model_and_transforms('ViT-B-32', pretrained='openai')
+        _CLIP_MODEL = model.to(_get_device())
+        _CLIP_MODEL.eval()
+
+class HSWQAdvancedBenchmark(IO.ComfyNode):
     @classmethod
     def define_schema(cls):
         return IO.Schema(
@@ -82,27 +104,6 @@ class HSWQAdvancedBenchmark(IO.ComfyNode):
             search_aliases=["HSWQ", "Benchmark", "LPIPS", "SSIM", "CLIP", "Diff"],
             essentials_category="Quantization/Benchmark",
         )
-
-    @classmethod
-    def _get_device(cls):
-        if cls._device is None:
-            cls._device = comfy.model_management.get_torch_device()
-        return cls._device
-
-    @classmethod
-    def load_lpips(cls):
-        if cls._lpips_model is None and LPIPS_AVAILABLE:
-            print("[HSWQ Bench] Loading LPIPS model (AlexNet)...")
-            cls._lpips_model = lpips.LPIPS(net='alex', verbose=False).to(cls._get_device())
-            cls._lpips_model.eval()
-
-    @classmethod
-    def load_clip(cls):
-        if cls._clip_model is None and CLIP_AVAILABLE:
-            print("[HSWQ Bench] Loading CLIP model (ViT-B-32)...")
-            model, _, _ = open_clip.create_model_and_transforms('ViT-B-32', pretrained='openai')
-            cls._clip_model = model.to(cls._get_device())
-            cls._clip_model.eval()
 
     @staticmethod
     def align_images(img_ref, img_target, max_shift=16):
@@ -181,7 +182,7 @@ class HSWQAdvancedBenchmark(IO.ComfyNode):
         enable_auto_align: IO.Boolean,
         diff_amplification: IO.Float,
     ):
-        device = cls._get_device()
+        device = _get_device()
         # 1. Validation & Resize
         if image_ref.shape != image_target.shape:
             if image_ref.shape[1:] != image_target.shape[1:]:
@@ -198,9 +199,9 @@ class HSWQAdvancedBenchmark(IO.ComfyNode):
         shifts_log = []
 
         if compute_lpips:
-            cls.load_lpips()
+            _load_lpips()
         if compute_clip:
-            cls.load_clip()
+            _load_clip()
 
         for i in range(batch_size):
             img1 = image_ref[i].unsqueeze(0).to(device)   # Ref
@@ -237,7 +238,7 @@ class HSWQAdvancedBenchmark(IO.ComfyNode):
             ssim_scores.append(ssim_val)
 
             # 3. LPIPS
-            if compute_lpips and LPIPS_AVAILABLE and cls._lpips_model:
+            if compute_lpips and LPIPS_AVAILABLE and _LPIPS_MODEL:
                 t1_lpips = img1_nchw * 2.0 - 1.0
                 t2_lpips = img2_nchw * 2.0 - 1.0
                 # LPIPS needs standard size often, but AlexNet handles varying sizes. 
@@ -247,13 +248,13 @@ class HSWQAdvancedBenchmark(IO.ComfyNode):
                      lpips_scores.append(0.0)
                 else:
                     with torch.no_grad():
-                        l_dist = cls._lpips_model(t1_lpips, t2_lpips).item()
+                        l_dist = _LPIPS_MODEL(t1_lpips, t2_lpips).item()
                     lpips_scores.append(l_dist)
             else:
                 lpips_scores.append(0.0)
 
             # 4. CLIP
-            if compute_clip and CLIP_AVAILABLE and cls._clip_model:
+            if compute_clip and CLIP_AVAILABLE and _CLIP_MODEL:
                 mean = torch.tensor([0.48145466, 0.4578275, 0.40821073], device=device).view(1, 3, 1, 1)
                 std = torch.tensor([0.26862954, 0.26130258, 0.27577711], device=device).view(1, 3, 1, 1)
 
@@ -264,8 +265,8 @@ class HSWQAdvancedBenchmark(IO.ComfyNode):
                 t2_clip = (t2_clip - mean) / std
 
                 with torch.no_grad():
-                    feat1 = cls._clip_model.encode_image(t1_clip)
-                    feat2 = cls._clip_model.encode_image(t2_clip)
+                    feat1 = _CLIP_MODEL.encode_image(t1_clip)
+                    feat2 = _CLIP_MODEL.encode_image(t2_clip)
                     feat1 /= feat1.norm(dim=-1, keepdim=True)
                     feat2 /= feat2.norm(dim=-1, keepdim=True)
                     similarity = (feat1 @ feat2.T).item()
